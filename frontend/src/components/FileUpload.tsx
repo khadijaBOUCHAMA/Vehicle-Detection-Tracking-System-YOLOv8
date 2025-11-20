@@ -1,5 +1,5 @@
 import { Upload, FileVideo, Image } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface FileUploadProps {
@@ -9,6 +9,7 @@ interface FileUploadProps {
 
 export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -39,6 +40,18 @@ export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
     }
   };
 
+  useEffect(() => {
+    if (selectedFile) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    } else {
+      setPreview(null);
+    }
+  }, [selectedFile]);
+
   const isVideo = selectedFile?.type.startsWith("video/");
   const isImage = selectedFile?.type.startsWith("image/");
 
@@ -66,11 +79,23 @@ export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
       <div className="flex flex-col items-center justify-center gap-4 text-center">
         {selectedFile ? (
           <>
-            {isVideo ? (
-              <FileVideo className="w-16 h-16 text-success animate-slide-up" />
-            ) : isImage ? (
-              <Image className="w-16 h-16 text-success animate-slide-up" />
-            ) : null}
+            {preview && (
+              <div className="w-full max-w-md animate-slide-up">
+                {isImage ? (
+                  <img 
+                    src={preview} 
+                    alt={selectedFile.name}
+                    className="w-full h-auto rounded-lg border border-border shadow-lg"
+                  />
+                ) : isVideo ? (
+                  <video 
+                    src={preview}
+                    controls
+                    className="w-full h-auto rounded-lg border border-border shadow-lg"
+                  />
+                ) : null}
+              </div>
+            )}
             <div className="space-y-2 animate-slide-up">
               <p className="text-lg font-semibold text-foreground">
                 {selectedFile.name}
