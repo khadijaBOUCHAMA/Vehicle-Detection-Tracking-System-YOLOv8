@@ -114,16 +114,209 @@ def process_image(image_data: bytes) -> dict:
         traceback.print_exc()
         return {"error": str(e)}
 
-def process_video_tracking(video_file) -> dict:
-    """Version simplifiée pour la vidéo"""
+def process_video_detection(video_file) -> dict:
+    """Traite la vidéo et détecte les véhicules sans tracking"""
     try:
-        return {
-            "success": True,
-            "message": "Fonction vidéo prête",
-            "processed_video": "debug.mp4",
-            "preview_image": None,
-            "final_counts": {},
-            "total_vehicles": 0
-        }
+        print("=== PROCESS_VIDEO_DETECTION START ===")
+        
+        import tempfile
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_video_path = os.path.join(temp_dir, "temp_video.mp4")
+            
+            video_content = video_file.file.read()
+            with open(temp_video_path, 'wb') as f:
+                f.write(video_content)
+            
+            print(f"Vidéo temporaire: {temp_video_path}")
+            
+            cap = cv2.VideoCapture(temp_video_path)
+            if not cap.isOpened():
+                return {"success": False, "error": "Impossible d'ouvrir la vidéo"}
+            
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            print(f"Vidéo: {width}x{height}, {fps}fps, {total_frames} frames")
+            
+            output_video_path = os.path.join("static", f"detection_{int(__import__('time').time())}.mp4")
+            os.makedirs("static", exist_ok=True)
+            
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            vehicle_counts = defaultdict(int)
+            total_detections = 0
+            frame_count = 0
+            preview_frame = None
+            
+            box_annotator = sv.BoxAnnotator()
+            
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                frame_count += 1
+                
+                results = model(frame)
+                result = results[0]
+                
+                if len(result.boxes) > 0:
+                    detections = sv.Detections.from_ultralytics(result)
+                    
+                    for class_id in result.boxes.cls:
+                        class_name = model.names[int(class_id)]
+                        vehicle_counts[class_name] += 1
+                        total_detections += 1
+                    
+                    annotated_frame = box_annotator.annotate(
+                        scene=frame.copy(),
+                        detections=detections
+                    )
+                else:
+                    annotated_frame = frame.copy()
+                
+                if preview_frame is None:
+                    preview_frame = annotated_frame.copy()
+                
+                out.write(annotated_frame)
+                
+                if frame_count % 30 == 0:
+                    print(f"Traitement frame {frame_count}/{total_frames}")
+            
+            cap.release()
+            out.release()
+            
+            print(f"Vidéo traitée: {frame_count} frames")
+            print(f"Objets détectés: {dict(vehicle_counts)}")
+            
+            preview_image = None
+            if preview_frame is not None:
+                preview_pil = Image.fromarray(cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB))
+                buffered = io.BytesIO()
+                preview_pil.save(buffered, format="JPEG", quality=85)
+                preview_image = base64.b64encode(buffered.getvalue()).decode()
+            
+            return {
+                "success": True,
+                "processed_video": os.path.basename(output_video_path),
+                "preview_image": preview_image,
+                "final_counts": dict(vehicle_counts),
+                "total_vehicles": total_detections
+            }
+            
     except Exception as e:
+        print(f"=== PROCESS_VIDEO_DETECTION ERROR ===")
+        print(f"Erreur: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
+
+def process_video_tracking(video_file) -> dict:
+    """Traite la vidéo et détecte les véhicules"""
+    try:
+        print("=== PROCESS_VIDEO START ===")
+        
+        import tempfile
+        from pathlib import Path
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_video_path = os.path.join(temp_dir, "temp_video.mp4")
+            
+            video_content = video_file.file.read()
+            with open(temp_video_path, 'wb') as f:
+                f.write(video_content)
+            
+            print(f"Vidéo temporaire: {temp_video_path}")
+            
+            cap = cv2.VideoCapture(temp_video_path)
+            if not cap.isOpened():
+                return {"success": False, "error": "Impossible d'ouvrir la vidéo"}
+            
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            print(f"Vidéo: {width}x{height}, {fps}fps, {total_frames} frames")
+            
+            output_video_path = os.path.join("static", f"output_{int(__import__('time').time())}.mp4")
+            os.makedirs("static", exist_ok=True)
+            
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            vehicle_counts = defaultdict(int)
+            total_detections = 0
+            frame_count = 0
+            preview_frame = None
+            
+            byte_track = sv.ByteTrack()
+            box_annotator = sv.BoxAnnotator()
+            
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                frame_count += 1
+                
+                results = model(frame)
+                result = results[0]
+                
+                if len(result.boxes) > 0:
+                    detections = sv.Detections.from_ultralytics(result)
+                    detections = byte_track.update_with_detections(detections)
+                    
+                    for class_id in result.boxes.cls:
+                        class_name = model.names[int(class_id)]
+                        vehicle_counts[class_name] += 1
+                        total_detections += 1
+                    
+                    annotated_frame = box_annotator.annotate(
+                        scene=frame.copy(),
+                        detections=detections
+                    )
+                else:
+                    annotated_frame = frame.copy()
+                
+                if preview_frame is None:
+                    preview_frame = annotated_frame.copy()
+                
+                out.write(annotated_frame)
+                
+                if frame_count % 30 == 0:
+                    print(f"Traitement frame {frame_count}/{total_frames}")
+            
+            cap.release()
+            out.release()
+            
+            print(f"Vidéo traitée: {frame_count} frames")
+            print(f"Véhicules détectés: {dict(vehicle_counts)}")
+            
+            preview_image = None
+            if preview_frame is not None:
+                preview_pil = Image.fromarray(cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB))
+                buffered = io.BytesIO()
+                preview_pil.save(buffered, format="JPEG", quality=85)
+                preview_image = base64.b64encode(buffered.getvalue()).decode()
+            
+            return {
+                "success": True,
+                "processed_video": os.path.basename(output_video_path),
+                "preview_image": preview_image,
+                "final_counts": dict(vehicle_counts),
+                "total_vehicles": total_detections
+            }
+            
+    except Exception as e:
+        print(f"=== PROCESS_VIDEO ERROR ===")
+        print(f"Erreur: {e}")
+        import traceback
+        traceback.print_exc()
         return {"success": False, "error": str(e)}

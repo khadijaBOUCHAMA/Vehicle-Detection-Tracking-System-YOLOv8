@@ -62,7 +62,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>YOLO11 Autonomous Driving</h1>
+        <h1>  Autonomous Driving</h1>
         <p>Vehicle Tracking & Counting System</p>
       </header>
 

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 import uvicorn
 import os
 
-app = FastAPI(title="YOLO11 Autonomous Driving")
+app = FastAPI(title="Autonomous Driving")
 
 # CORS middleware
 app.add_middleware(
@@ -23,7 +23,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def root():
-    return {"message": "YOLO11 Autonomous Driving API", "status": "active"}
+    return {"message": "  Autonomous Driving API", "status": "active"}
 
 
 @app.get("/health")
@@ -39,11 +39,27 @@ async def process_image_endpoint(file: UploadFile = File(...)):
         from inference_tracking import process_image
         image_data = await file.read()
         result = process_image(image_data)
+
+        # Vérifier si le résultat contient une erreur
+        if "error" in result:
+            return {"success": False, "error": result["error"]}
+
         return {
             "success": True,
-            "detections": result["detections"],
-            "processed_image": result["processed_image"]
+            "detections": result.get("detections", []),
+            "processed_image": result.get("processed_image")
         }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/process-video")
+async def process_video_detection_endpoint(file: UploadFile = File(...)):
+    try:
+        from inference_tracking import process_video_detection
+        result = process_video_detection(file)
+        return result
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -58,6 +74,19 @@ async def process_video_tracking_endpoint(file: UploadFile = File(...)):
         return {"success": False, "error": str(e)}
 
 
+@app.get("/api/download-video/{filename}")
+async def download_video_endpoint(filename: str):
+    file_path = os.path.join("static", filename)
+    if os.path.exists(file_path):
+        return FileResponse(
+            file_path,
+            media_type="video/mp4",
+            filename=filename
+        )
+
+    return {"error": "File not found"}
+
+
 @app.websocket("/ws/live-tracking")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -69,6 +98,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"WebSocket error: {e}")
 
+
 if __name__ == "__main__":
-    print("🚀 Démarrage de l'API YOLO11 Autonomous Driving...")
+    print("🚀 Démarrage de l'API   Autonomous Driving...")
     uvicorn.run(app, host="0.0.0.0", port=8001)  # Port changé à 8001

@@ -11,12 +11,21 @@ export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
+  const isValidFileType = (file: File) => {
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mov'];
+    
+    return file.type.startsWith("image/") || file.type.startsWith("video/") || 
+           validTypes.includes(file.type) || (fileExtension && validExtensions.includes(fileExtension));
+  };
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && (file.type.startsWith("image/") || file.type.startsWith("video/"))) {
+      if (file && isValidFileType(file)) {
         onFileSelect(file);
       }
     },
@@ -35,7 +44,7 @@ export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (file && isValidFileType(file)) {
       onFileSelect(file);
     }
   };
@@ -52,8 +61,15 @@ export const FileUpload = ({ onFileSelect, selectedFile }: FileUploadProps) => {
     }
   }, [selectedFile]);
 
-  const isVideo = selectedFile?.type.startsWith("video/");
-  const isImage = selectedFile?.type.startsWith("image/");
+  const isVideo = selectedFile ? (
+    selectedFile.type.startsWith("video/") || 
+    ['mp4', 'webm', 'mov'].includes(selectedFile.name.split('.').pop()?.toLowerCase() || '')
+  ) : false;
+  
+  const isImage = selectedFile ? (
+    selectedFile.type.startsWith("image/") || 
+    ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(selectedFile.name.split('.').pop()?.toLowerCase() || '')
+  ) : false;
 
   return (
     <div
