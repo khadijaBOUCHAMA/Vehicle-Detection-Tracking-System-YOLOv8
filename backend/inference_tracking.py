@@ -121,18 +121,21 @@ def process_video_detection(video_file) -> dict:
         
         import tempfile
         from pathlib import Path
+        import time
         
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_video_path = os.path.join(temp_dir, "temp_video.mp4")
-            
+        os.makedirs("static", exist_ok=True)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            temp_video_path = temp_file.name
             video_content = video_file.file.read()
-            with open(temp_video_path, 'wb') as f:
-                f.write(video_content)
-            
+            temp_file.write(video_content)
+        
+        try:
             print(f"Vidéo temporaire: {temp_video_path}")
             
             cap = cv2.VideoCapture(temp_video_path)
             if not cap.isOpened():
+                os.unlink(temp_video_path)
                 return {"success": False, "error": "Impossible d'ouvrir la vidéo"}
             
             fps = cap.get(cv2.CAP_PROP_FPS)
@@ -142,11 +145,20 @@ def process_video_detection(video_file) -> dict:
             
             print(f"Vidéo: {width}x{height}, {fps}fps, {total_frames} frames")
             
-            output_video_path = os.path.join("static", f"detection_{int(__import__('time').time())}.mp4")
-            os.makedirs("static", exist_ok=True)
+            output_video_path = os.path.join("static", f"detection_{int(time.time())}.avi")
             
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                output_video_path = os.path.join("static", f"detection_{int(time.time())}.avi")
+                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                cap.release()
+                os.unlink(temp_video_path)
+                return {"success": False, "error": "Impossible de créer la vidéo de sortie"}
             
             vehicle_counts = defaultdict(int)
             total_detections = 0
@@ -193,6 +205,7 @@ def process_video_detection(video_file) -> dict:
             
             print(f"Vidéo traitée: {frame_count} frames")
             print(f"Objets détectés: {dict(vehicle_counts)}")
+            print(f"Vidéo sauvegardée: {output_video_path}")
             
             preview_image = None
             if preview_frame is not None:
@@ -208,6 +221,9 @@ def process_video_detection(video_file) -> dict:
                 "final_counts": dict(vehicle_counts),
                 "total_vehicles": total_detections
             }
+        finally:
+            if os.path.exists(temp_video_path):
+                os.unlink(temp_video_path)
             
     except Exception as e:
         print(f"=== PROCESS_VIDEO_DETECTION ERROR ===")
@@ -224,18 +240,21 @@ def process_video_tracking(video_file) -> dict:
         
         import tempfile
         from pathlib import Path
+        import time
         
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_video_path = os.path.join(temp_dir, "temp_video.mp4")
-            
+        os.makedirs("static", exist_ok=True)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            temp_video_path = temp_file.name
             video_content = video_file.file.read()
-            with open(temp_video_path, 'wb') as f:
-                f.write(video_content)
-            
+            temp_file.write(video_content)
+        
+        try:
             print(f"Vidéo temporaire: {temp_video_path}")
             
             cap = cv2.VideoCapture(temp_video_path)
             if not cap.isOpened():
+                os.unlink(temp_video_path)
                 return {"success": False, "error": "Impossible d'ouvrir la vidéo"}
             
             fps = cap.get(cv2.CAP_PROP_FPS)
@@ -245,11 +264,20 @@ def process_video_tracking(video_file) -> dict:
             
             print(f"Vidéo: {width}x{height}, {fps}fps, {total_frames} frames")
             
-            output_video_path = os.path.join("static", f"output_{int(__import__('time').time())}.mp4")
-            os.makedirs("static", exist_ok=True)
+            output_video_path = os.path.join("static", f"output_{int(time.time())}.avi")
             
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
             out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                output_video_path = os.path.join("static", f"output_{int(time.time())}.avi")
+                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                cap.release()
+                os.unlink(temp_video_path)
+                return {"success": False, "error": "Impossible de créer la vidéo de sortie"}
             
             vehicle_counts = defaultdict(int)
             total_detections = 0
@@ -298,6 +326,7 @@ def process_video_tracking(video_file) -> dict:
             
             print(f"Vidéo traitée: {frame_count} frames")
             print(f"Véhicules détectés: {dict(vehicle_counts)}")
+            print(f"Vidéo sauvegardée: {output_video_path}")
             
             preview_image = None
             if preview_frame is not None:
@@ -313,6 +342,9 @@ def process_video_tracking(video_file) -> dict:
                 "final_counts": dict(vehicle_counts),
                 "total_vehicles": total_detections
             }
+        finally:
+            if os.path.exists(temp_video_path):
+                os.unlink(temp_video_path)
             
     except Exception as e:
         print(f"=== PROCESS_VIDEO ERROR ===")

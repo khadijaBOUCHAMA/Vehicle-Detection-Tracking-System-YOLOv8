@@ -221,6 +221,7 @@ const Index = () => {
         {trackingResults && processedImage && (
           <VideoResults
             previewImage={processedImage}
+            processedVideoUrl={`http://localhost:8001/api/download-video/${trackingResults.processed_video}`}
             totalVehicles={trackingResults.total_vehicles}
             counts={trackingResults.final_counts}
             onDownload={handleDownloadVideo}

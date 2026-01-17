@@ -81,7 +81,7 @@ async def download_video_endpoint(filename: str):
         return FileResponse(
             file_path,
             media_type="video/mp4",
-            filename=filename
+            headers={"Accept-Ranges": "bytes"}
         )
 
     return {"error": "File not found"}

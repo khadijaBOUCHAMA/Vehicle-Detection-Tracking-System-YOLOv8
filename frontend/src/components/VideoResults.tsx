@@ -5,6 +5,7 @@ import { VehicleStats } from "./VehicleStats";
 
 interface VideoResultsProps {
   previewImage: string;
+  processedVideoUrl: string;
   totalVehicles: number;
   counts: Record<string, number>;
   onDownload: () => void;
@@ -12,6 +13,7 @@ interface VideoResultsProps {
 
 export const VideoResults = ({
   previewImage,
+  processedVideoUrl,
   totalVehicles,
   counts,
   onDownload,
@@ -31,14 +33,16 @@ export const VideoResults = ({
 
       <Card className="bg-card/80 backdrop-blur-sm border-border overflow-hidden animate-slide-up">
         <CardHeader>
-          <CardTitle className="text-xl">Aperçu de la Vidéo Traitée</CardTitle>
+          <CardTitle className="text-xl">Vidéo Traitée</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <img
-            src={previewImage}
-            alt="Video preview"
-            className="w-full h-auto object-contain"
-          />
+          <video
+            controls
+            className="w-full h-auto object-contain bg-black"
+          >
+            <source src={processedVideoUrl} type="video/mp4" />
+            Votre navigateur ne supporte pas la vidéo HTML5
+          </video>
         </CardContent>
       </Card>
 
